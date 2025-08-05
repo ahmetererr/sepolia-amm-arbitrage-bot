@@ -4,27 +4,11 @@
     "private": "PRIVATE_KEY"
   },
   "rpcUrl": {
-    "polygon": {
+    "sepolia": {
       "local": "LOCAL",
-      "public": "PUBLIC_POLYGON_RPC_URL",
-      "alchemy": "ALCHEMY_POLYGON_RPC_URL",
-      "infura": "INFURA_POLYGON_RPC_URL"
-    },
-    "mainnet": {
-      "local": "LOCAL",
-      "public": "PUBLIC_ETH_RPC_URL",
-      "alchemy": "ALCHEMY_ETH_RPC_URL",
-      "infura": "INFURA_ETH_RPC_URL"
-    },
-    "optimism": {
-      "public": "PUBLIC_OPTIMISM_RPC_URL",
-      "alchemy": "ALCHEMY_OPTIMISM_RPC_URL",
-      "infura": "INFURA_OPTIMISM_RPC_URL"
-    },
-    "arbitrum": {
-      "public": "PUBLIC_ARBITRUM_RPC_URL",
-      "alchemy": "ALCHEMY_ARBITRUM_RPC_URL",
-      "infura": "INFURA_ARBITRUM_RPC_URL"
+      "public": "https://sepolia.infura.io/v3/67118aec42f74c32aed4696be1d5e384",
+      "alchemy": "ALCHEMY_SEPOLIA_RPC_URL",
+      "infura": "https://sepolia.infura.io/v3/67118aec42f74c32aed4696be1d5e384"
     }
   }
 }

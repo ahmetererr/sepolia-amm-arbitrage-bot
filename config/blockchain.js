@@ -1,25 +1,33 @@
 require("dotenv").config();
-const { ethers, BigNumber } = require("ethers");
-const config = require("./config.json");
+const { ethers } = require("hardhat");
 
-const CHAIN = "polygon";
-const MY_ACCOUNT = config.keys.private;
-
-const HTTP_URL_LOCAL = config.rpcUrl[CHAIN].local;
-const HTTP_URL_PUBLIC = config.rpcUrl[CHAIN].public;
-const HTTP_URL_PRIVATE = config.rpcUrl[CHAIN].alchemy;
-
-const BN = BigNumber;
-const provider = {
-  local: new ethers.providers.JsonRpcProvider(process.env[HTTP_URL_LOCAL]),
-  public: new ethers.providers.JsonRpcProvider(process.env[HTTP_URL_PUBLIC]),
-  private: new ethers.providers.JsonRpcProvider(process.env[HTTP_URL_PRIVATE]),
-};
+const BN = ethers.BigNumber;
 
 const deployer = {
-  local: new ethers.Wallet(process.env[MY_ACCOUNT], provider.local),
-  public: new ethers.Wallet(process.env[MY_ACCOUNT], provider.public),
-  private: new ethers.Wallet(process.env[MY_ACCOUNT], provider.private),
+  sepolia: null,
+  localhost: null,
+  hardhat: null
 };
 
-module.exports = { provider, deployer, BN, ethers };
+async function initializeDeployer() {
+  try {
+    const [signer] = await ethers.getSigners();
+    
+    deployer.sepolia = signer;
+    deployer.localhost = signer;
+    deployer.hardhat = signer;
+    
+    console.log(`🔗 Connected to network: ${await signer.provider.getNetwork().then(n => n.name)}`);
+    console.log(`👤 Using account: ${signer.address}`);
+  } catch (error) {
+    console.error("Error initializing deployer:", error.message);
+  }
+}
+
+// Export the initialization function so it can be called when needed
+module.exports = {
+  BN,
+  deployer,
+  ethers,
+  initializeDeployer
+};

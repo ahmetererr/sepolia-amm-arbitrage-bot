@@ -1,59 +1,86 @@
 const { BN } = require("../config/blockchain");
-const aave = require("../config/aave.json");
-const { tokens } = require("../data/tokens.js");
-const { getDiff } = require("../utils/swapsUtilities");
-const { newZap } = require("../utils/newZap");
+const { SEPOLIA_TOKENS, SEPOLIA_POOLS, arbitragePaths, TEST_AMOUNTS } = require("../data/tokens.js");
+const { checkArbitrageOpportunity } = require("../utils/swapsUtilities");
 
 async function main() {
-  const TYPE = "public";
-  const USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
-  const USDC = "0x2791bca1f2de4661ed88a30c99a7a9449aa84174";
-  const ONE = BN.from("1000000000000000000");
-  const HALF = BN.from("500000000000000000");
-  const WMATIC = aave.polygon.iWeth.address;
+  const TYPE = "sepolia";
+  const WETH = SEPOLIA_TOKENS.WETH;
+  const FOGG = SEPOLIA_TOKENS.FOGG;
+  const DAI = SEPOLIA_TOKENS.DAI;
+  
+  console.log("🚀 Starting Sepolia Arbitrage Bot");
+  console.log("📊 Monitoring pools for arbitrage opportunities...");
+  console.log("");
+
   try {
-    for (let i = 0; i < tokens.length; i++) {
-      const paths = [
-        [WMATIC, tokens[i]],
-        [WMATIC, USDT, tokens[i]],
-        [WMATIC, USDC, tokens[i]],
-      ];
-
-      const AMOUNT = ONE.mul(14);
-
-      const params = {
-        tokenIn: WMATIC,
-        tokenOut: tokens[i],
-        fee: 3000,
-        amountIn: AMOUNT,
-        amountOutMinimum: 0,
-        sqrtPriceLimitX96: 0,
-      };
-
-      for (let j = 0; j < paths.length; j++) {
-        const { firstDex, secondDex, thirdDex } = await getDiff(AMOUNT, paths[j], params, i, TYPE);
-
-        if (firstDex != secondDex) {
-          await newZap(firstDex, secondDex, AMOUNT, paths[j], TYPE);
+    // Test different arbitrage paths
+    for (let i = 0; i < arbitragePaths.length; i++) {
+      const path = arbitragePaths[i];
+      console.log(`🔄 Testing Path ${i + 1}: ${path.map(token => {
+        if (token === WETH) return "WETH";
+        if (token === FOGG) return "FOGG";
+        if (token === DAI) return "DAI";
+        return token;
+      }).join(" → ")}`);
+      
+      // Test with different amounts
+      const testAmounts = [TEST_AMOUNTS.SMALL, TEST_AMOUNTS.MEDIUM];
+      
+      for (let j = 0; j < testAmounts.length; j++) {
+        const amount = testAmounts[j];
+        console.log(`  💰 Testing with ${ethers.utils.formatEther(amount)} ETH`);
+        
+        const result = await checkArbitrageOpportunity(amount, path, TYPE);
+        
+        if (result.profitable) {
+          console.log(`  ✅ PROFITABLE! Profit: ${ethers.utils.formatEther(result.profit)} ETH`);
+          console.log(`  📈 ROI: ${((parseFloat(ethers.utils.formatEther(result.profit)) / parseFloat(ethers.utils.formatEther(amount))) * 100).toFixed(2)}%`);
+        } else {
+          console.log(`  ❌ Not profitable`);
         }
-
-        if (firstDex != thirdDex) {
-          await newZap(firstDex, thirdDex, AMOUNT, paths[j], TYPE);
-        }
-
-        if (secondDex != thirdDex) {
-          await newZap(secondDex, thirdDex, AMOUNT, paths[j], TYPE);
-        }
+        console.log("");
       }
     }
-    main();
+    
+    // Continuous monitoring
+    console.log("🔍 Starting continuous monitoring...");
+    console.log("Press Ctrl+C to stop");
+    
+    // Monitor for opportunities every 30 seconds
+    setInterval(async () => {
+      console.log(`\n⏰ ${new Date().toLocaleTimeString()} - Checking for opportunities...`);
+      
+      for (let i = 0; i < arbitragePaths.length; i++) {
+        const path = arbitragePaths[i];
+        const result = await checkArbitrageOpportunity(TEST_AMOUNTS.SMALL, path, TYPE);
+        
+        if (result.profitable) {
+          console.log(`🎯 OPPORTUNITY FOUND!`);
+          console.log(`Path: ${path.map(token => {
+            if (token === WETH) return "WETH";
+            if (token === FOGG) return "FOGG";
+            if (token === DAI) return "DAI";
+            return token;
+          }).join(" → ")}`);
+          console.log(`Profit: ${ethers.utils.formatEther(result.profit)} ETH`);
+          console.log(`ROI: ${((parseFloat(ethers.utils.formatEther(result.profit)) / parseFloat(ethers.utils.formatEther(TEST_AMOUNTS.SMALL))) * 100).toFixed(2)}%`);
+        }
+      }
+    }, 30000); // 30 seconds
+    
   } catch (error) {
-    console.log("Something went wrong: ", error.reason);
-    console.log("waiting for network...");
+    console.log("❌ Something went wrong: ", error.reason || error.message);
+    console.log("⏳ Waiting for network...");
     setTimeout(() => {
       main();
-    }, 1000);
+    }, 5000);
   }
 }
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Stopping arbitrage bot...');
+  process.exit(0);
+});
 
 main();

@@ -1,80 +1,88 @@
-const { BN } = require("../config/blockchain");
-const aave = require("../config/aave.json");
-const { tokens } = require("../data/tokens.js");
-const { getDiff, getExpectedOutput } = require("../utils/swapsUtilities");
-const { callZap } = require("../utils/callZap");
+const { ethers } = require("hardhat");
+const { SEPOLIA_TOKENS, SEPOLIA_POOLS, TEST_AMOUNTS } = require("../data/tokens.js");
+const { checkArbitrageOpportunity } = require("../utils/swapsUtilities");
 
 async function main() {
-  const TYPE = "public";
-  const ONE = BN.from("1000000000000000000");
-  const HALF = BN.from("500000000000000000");
-  const WMATIC = aave.polygon.iWeth.address;
+  console.log("🧪 Simple Arbitrage Test for Sepolia");
+  console.log("=====================================");
+  
+  const TYPE = "sepolia";
+  const WETH = SEPOLIA_TOKENS.WETH;
+  const FOGG = SEPOLIA_TOKENS.FOGG;
+  const DAI = SEPOLIA_TOKENS.DAI;
+  
+  console.log(`Token Addresses:`);
+  console.log(`  WETH: ${WETH}`);
+  console.log(`  FOGG: ${FOGG}`);
+  console.log(`  DAI: ${DAI}`);
+  console.log(`Pool Addresses:`);
+  console.log(`  DAI/WETH: ${SEPOLIA_POOLS.DAI_WETH}`);
+  console.log(`  FOGG/WETH: ${SEPOLIA_POOLS.FOGG_WETH}`);
+  console.log("");
+
   try {
-    for (let i = 0; i < tokens.length; i++) {
-      const config = {
-        amount: ONE.mul(12),
-        token0: WMATIC_ADDRESS,
-        token1: tokens[i],
-      };
-
-      const path = [WMATIC, tokens[i]];
-      const AMOUNT = ONE.mul(12);
-
-      const params = {
-        tokenIn: WMATIC,
-        tokenOut: tokens[i],
-        fee: 3000,
-        amountIn: AMOUNT,
-        amountOutMinimum: 0,
-        sqrtPriceLimitX96: 0,
-      };
-
-      const { firstDex, secondDex, thirdDex } = await getDiff(AMOUNT, path, params, i, TYPE);
-
-      let profitable;
-      if (firstDex != secondDex) {
-        profitable = await getExpectedOutput(firstDex, secondDex, config, params, TYPE);
-        if (profitable) {
-          await callZap(
-            firstDex,
-            secondDex,
-            config.amount,
-            config.token0,
-            config.token1,
-            "private"
-          );
-        }
-      }
-
-      if (firstDex != thirdDex) {
-        profitable = await getExpectedOutput(firstDex, thirdDex, config, params, TYPE);
-        if (profitable) {
-          await callZap(firstDex, thirdDex, config.amount, config.token0, config.token1, "private");
-        }
-      }
-
-      if (secondDex != thirdDex) {
-        profitable = await getExpectedOutput(secondDex, thirdDex, config, params, TYPE);
-        if (profitable) {
-          await callZap(
-            secondDex,
-            thirdDex,
-            config.amount,
-            config.token0,
-            config.token1,
-            "private"
-          );
-        }
-      }
+    // Test 1: WETH -> FOGG -> WETH (2-token path)
+    console.log("🔄 Test 1: WETH → FOGG → WETH");
+    const path1 = [WETH, FOGG, WETH];
+    const result1 = await checkArbitrageOpportunity(TEST_AMOUNTS.SMALL, path1, TYPE);
+    console.log(`Result: ${result1.profitable ? "✅ Profitable" : "❌ Not profitable"}`);
+    if (result1.profitable) {
+      console.log(`Profit: ${ethers.utils.formatEther(result1.profit)} ETH`);
     }
-    main();
+    console.log("");
+
+    // Test 2: WETH -> DAI -> WETH (2-token path)
+    console.log("🔄 Test 2: WETH → DAI → WETH");
+    const path2 = [WETH, DAI, WETH];
+    const result2 = await checkArbitrageOpportunity(TEST_AMOUNTS.SMALL, path2, TYPE);
+    console.log(`Result: ${result2.profitable ? "✅ Profitable" : "❌ Not profitable"}`);
+    if (result2.profitable) {
+      console.log(`Profit: ${ethers.utils.formatEther(result2.profit)} ETH`);
+    }
+    console.log("");
+
+    // Test 3: FOGG -> WETH -> FOGG (2-token path)
+    console.log("🔄 Test 3: FOGG → WETH → FOGG");
+    const path3 = [FOGG, WETH, FOGG];
+    const result3 = await checkArbitrageOpportunity(TEST_AMOUNTS.SMALL, path3, TYPE);
+    console.log(`Result: ${result3.profitable ? "✅ Profitable" : "❌ Not profitable"}`);
+    if (result3.profitable) {
+      console.log(`Profit: ${ethers.utils.formatEther(result3.profit)} ETH`);
+    }
+    console.log("");
+
+    // Test 4: DAI -> WETH -> DAI (2-token path)
+    console.log("🔄 Test 4: DAI → WETH → DAI");
+    const path4 = [DAI, WETH, DAI];
+    const result4 = await checkArbitrageOpportunity(TEST_AMOUNTS.SMALL, path4, TYPE);
+    console.log(`Result: ${result4.profitable ? "✅ Profitable" : "❌ Not profitable"}`);
+    if (result4.profitable) {
+      console.log(`Profit: ${ethers.utils.formatEther(result4.profit)} ETH`);
+    }
+    console.log("");
+
+    // Summary
+    console.log("📊 Summary:");
+    const results = [result1, result2, result3, result4];
+    const profitableCount = results.filter(r => r.profitable).length;
+    console.log(`Profitable opportunities: ${profitableCount}/${results.length}`);
+    
+    if (profitableCount > 0) {
+      console.log("🎯 Arbitrage opportunities found!");
+    } else {
+      console.log("😔 No arbitrage opportunities found at the moment.");
+      console.log("💡 This is normal - arbitrage opportunities are rare and require price differences.");
+      console.log("💡 You can create opportunities by adjusting pool prices manually.");
+    }
+
   } catch (error) {
-    console.log("Something went wrong: ", error.reason);
-    console.log("waiting for network...");
-    setTimeout(() => {
-      main();
-    }, 60000);
+    console.error("❌ Error during testing:", error.message);
   }
 }
 
-main();
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
